@@ -33,3 +33,33 @@ variable "private_subnet_cidrs" {
   type        = list(string)
   default     = ["10.0.2.0/24", "10.0.3.0/24"]
 }
+
+variable "eks_cluster_version" {
+  description = "Kubernetes version of the EKS cluster."
+  type        = string
+  default     = "1.36"
+}
+
+variable "node_instance_types" {
+  description = "EC2 instance types used by the Node Group."
+  type        = list(string)
+  default     = ["t3.small"]
+}
+
+variable "node_desired_size" {
+  description = "Desired number of nodes in the Node Group."
+  type        = number
+  default     = 2
+}
+
+variable "node_min_size" {
+  description = "Minimum number of nodes in the Node Group."
+  type        = number
+  default     = 1
+}
+
+variable "node_max_size" {
+  description = "Maximum number of nodes in the Node Group."
+  type        = number
+  default     = 3
+}
