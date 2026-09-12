@@ -1,14 +1,12 @@
 aws_region   = "us-east-1"
 project_name = "togglemaster"
 
-# true  = AWS Academy (usa LabRole, não cria IAM)
-# false = conta pessoal (Terraform cria as roles)
-use_lab_role = true
-
 node_instance_types = ["t3.medium"]
 node_desired_size   = 2
 node_min_size       = 1
 node_max_size       = 3
 
 rds_instance_class = "db.t3.micro"
-redis_node_type    = "cache.t3.micro"
+
+db_user = "CHANGEME"
+db_pass = "CHANGEME_com_12_ou_mais_caracteres"

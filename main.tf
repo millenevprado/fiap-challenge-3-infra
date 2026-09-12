@@ -23,3 +23,54 @@ module "eks" {
   node_min_size       = var.node_min_size
   node_max_size       = var.node_max_size
 }
+
+module "data_layer" {
+  source = "./modules/data_layer"
+
+  project_name                  = var.project_name
+  vpc_id                        = module.networking.vpc_id
+  eks_cluster_security_group_id = module.eks.cluster_security_group_id
+  private_subnet_ids            = module.networking.private_subnet_ids
+}
+
+module "rds_auth" {
+  source = "./modules/rds"
+
+  identifier             = "${var.project_name}-auth-db"
+  db_name                = "authdb"
+  engine_version         = var.rds_engine_version
+  instance_class         = var.rds_instance_class
+  allocated_storage      = var.rds_allocated_storage
+  subnet_group_name      = module.data_layer.db_subnet_group_name
+  vpc_security_group_ids = [module.data_layer.security_group_id]
+  db_user                = var.db_user
+  db_pass                = var.db_pass
+}
+
+module "rds_flag" {
+  source = "./modules/rds"
+
+  identifier             = "${var.project_name}-flag-db"
+  db_name                = "flagdb"
+  engine_version         = var.rds_engine_version
+  instance_class         = var.rds_instance_class
+  allocated_storage      = var.rds_allocated_storage
+  subnet_group_name      = module.data_layer.db_subnet_group_name
+  vpc_security_group_ids = [module.data_layer.security_group_id]
+  db_user                = var.db_user
+  db_pass                = var.db_pass
+}
+
+module "rds_targeting" {
+  source = "./modules/rds"
+
+  identifier             = "${var.project_name}-targeting-db"
+  db_name                = "targetingdb"
+  engine_version         = var.rds_engine_version
+  instance_class         = var.rds_instance_class
+  allocated_storage      = var.rds_allocated_storage
+  subnet_group_name      = module.data_layer.db_subnet_group_name
+  vpc_security_group_ids = [module.data_layer.security_group_id]
+  db_user                = var.db_user
+  db_pass                = var.db_pass
+}

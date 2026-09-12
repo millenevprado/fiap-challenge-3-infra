@@ -63,3 +63,37 @@ variable "node_max_size" {
   type        = number
   default     = 3
 }
+
+variable "rds_engine_version" {
+  description = "PostgreSQL engine version."
+  type        = string
+  default     = "16.4"
+}
+
+variable "rds_instance_class" {
+  description = "RDS instance class."
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "rds_allocated_storage" {
+  description = "Allocated storage in GB for each RDS instance."
+  type        = number
+  default     = 20
+}
+
+variable "db_user" {
+  description = "Master username for the RDS instances."
+  type        = string
+}
+
+variable "db_pass" {
+  description = "Master password for the RDS instances. Provide via TF_VAR_db_pass, never commit it."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(trimspace(var.db_pass)) >= 12
+    error_message = "db_pass must be at least 12 characters long and provided via TF_VAR_db_pass."
+  }
+}
