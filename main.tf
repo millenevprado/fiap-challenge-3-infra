@@ -74,3 +74,12 @@ module "rds_targeting" {
   db_user                = var.db_user
   db_pass                = var.db_pass
 }
+
+module "elasticache" {
+  source = "./modules/elasticache"
+
+  cluster_id             = "${var.project_name}-redis"
+  node_type              = var.redis_node_type
+  subnet_ids             = module.networking.private_subnet_ids
+  vpc_security_group_ids = [module.data_layer.security_group_id]
+}
