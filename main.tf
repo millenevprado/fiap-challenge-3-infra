@@ -83,3 +83,9 @@ module "elasticache" {
   subnet_ids             = module.networking.private_subnet_ids
   vpc_security_group_ids = [module.data_layer.security_group_id]
 }
+
+module "dynamodb" {
+  source = "./modules/dynamodb"
+
+  table_name = "ToggleMasterAnalytics"
+}
