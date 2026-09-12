@@ -95,3 +95,9 @@ module "sqs" {
 
   queue_name = "${var.project_name}-evaluation-events"
 }
+
+module "ecr" {
+  source = "./modules/ecr"
+
+  repository_names = var.ecr_repository_names
+}

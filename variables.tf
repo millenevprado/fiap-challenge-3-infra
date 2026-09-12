@@ -103,3 +103,15 @@ variable "db_pass" {
     error_message = "db_pass must be at least 12 characters long and provided via TF_VAR_db_pass."
   }
 }
+
+variable "ecr_repository_names" {
+  description = "Names of the ECR repositories, one per microservice."
+  type        = list(string)
+  default = [
+    "auth-service",
+    "flag-service",
+    "targeting-service",
+    "evaluation-service",
+    "analytics-service",
+  ]
+}
