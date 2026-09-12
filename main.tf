@@ -89,3 +89,9 @@ module "dynamodb" {
 
   table_name = "ToggleMasterAnalytics"
 }
+
+module "sqs" {
+  source = "./modules/sqs"
+
+  queue_name = "${var.project_name}-evaluation-events"
+}
