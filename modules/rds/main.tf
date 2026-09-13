@@ -13,7 +13,7 @@ resource "aws_db_instance" "postgres" {
   vpc_security_group_ids = var.vpc_security_group_ids
 
   publicly_accessible = false
-  skip_final_snapshot  = true
+  skip_final_snapshot = true
 
   tags = {
     Name = var.identifier
