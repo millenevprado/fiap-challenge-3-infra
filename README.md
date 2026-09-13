@@ -89,6 +89,26 @@ A partir daí, a próxima etapa é criar as `Application` do ArgoCD apontando
 para o repositório [`fiap-challenge-3-gitops`](https://github.com/millenevprado/fiap-challenge-3-gitops)
 (uma por microsserviço, cada uma sincronizando seu próprio subdiretório).
 
+## CI/CD (`.github/workflows/terraform.yml`)
+
+- **`validate`**: roda em todo `push` para `main` que altere arquivos `.tf` —
+  `terraform fmt -check`, `terraform init` e `terraform validate`.
+- **`plan`**: roda em seguida (mesmo evento) e mostra o diff do estado real
+  contra o código, sem aplicar nada.
+- **`apply`**: só roda via `workflow_dispatch` (botão "Run workflow" na aba
+  Actions, escolhendo a opção `apply`) — nenhuma alteração de infraestrutura
+  acontece automaticamente por push.
+
+### Secrets necessários no repositório
+
+- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` — IAM user da conta pessoal.
+- `TF_VAR_DB_USER` / `TF_VAR_DB_PASS` — equivalentes às variáveis `db_user`/
+  `db_pass` do Terraform (nunca commitadas em `terraform.tfvars`).
+
+O job `apply` usa o Environment `production` do GitHub — opcionalmente dá
+para configurar um *required reviewer* nele (Settings → Environments) para
+exigir uma segunda aprovação antes do apply rodar.
+
 ## Custo
 
 Nenhum destes recursos tem free tier completo (EKS control plane e NAT Gateway
