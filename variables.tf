@@ -119,7 +119,7 @@ variable "gitops_repo_url" {
 variable "gitops_target_revision" {
   description = "Branch/tag/commit of the GitOps repository that the ArgoCD Applications should sync."
   type        = string
-  default     = "main"
+  default     = "master"
 }
 
 variable "microservices" {
