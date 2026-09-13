@@ -21,7 +21,8 @@ infra/
     ├── elasticache/  # cluster Redis
     ├── dynamodb/     # tabela ToggleMasterAnalytics
     ├── sqs/          # fila entre evaluation-service e analytics-service
-    └── ecr/          # 5 repositórios de imagem, um por microsserviço
+    ├── ecr/          # 5 repositórios de imagem, um por microsserviço
+    └── argocd/       # ArgoCD via Helm (provider helm), instalado no EKS
 ```
 
 ## AWS Academy x Conta pessoal
@@ -54,6 +55,39 @@ A variável `use_lab_role` controla o módulo `eks`:
 5. Quando não estiver usando (fim do dia de trabalho, entre sessões de teste),
    rode `terraform destroy` — EKS, NAT Gateway e RDS são cobrados por hora
    mesmo parados/ociosos.
+
+## ArgoCD
+
+O módulo `argocd` instala o chart Helm `argo-cd` (repo `argoproj/argo-helm`) no
+namespace `argocd` do EKS, via os providers `helm`/`kubernetes` configurados em
+`providers.tf` (autenticados com `data "aws_eks_cluster_auth"`, sem precisar de
+kubeconfig manual). O Service do `argocd-server` fica como `ClusterIP` (sem
+LoadBalancer, para não gerar custo extra) — o acesso é por port-forward.
+
+Como cluster e ArgoCD nascem no mesmo `apply`, os providers `helm`/`kubernetes`
+dependem de valores que só existem depois do EKS ser criado. Na primeira vez
+(cluster ainda não existe), rode em duas etapas:
+
+```bash
+terraform apply -target=module.eks
+terraform apply
+```
+
+Depois de aplicado, configure o `kubectl` e acesse a UI:
+
+```bash
+aws eks update-kubeconfig --name togglemaster-eks --region us-east-1
+
+kubectl -n argocd port-forward svc/argocd-server 8080:443
+# UI em https://localhost:8080, usuário "admin"
+
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d
+```
+
+A partir daí, a próxima etapa é criar as `Application` do ArgoCD apontando
+para o repositório [`fiap-challenge-3-gitops`](https://github.com/millenevprado/fiap-challenge-3-gitops)
+(uma por microsserviço, cada uma sincronizando seu próprio subdiretório).
 
 ## Custo
 

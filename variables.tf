@@ -104,6 +104,12 @@ variable "db_pass" {
   }
 }
 
+variable "argocd_chart_version" {
+  description = "Version of the argo-cd Helm chart (argoproj/argo-helm repo) installed on the cluster."
+  type        = string
+  default     = "10.9.0"
+}
+
 variable "ecr_repository_names" {
   description = "Names of the ECR repositories, one per microservice."
   type        = list(string)

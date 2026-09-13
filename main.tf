@@ -101,3 +101,11 @@ module "ecr" {
 
   repository_names = var.ecr_repository_names
 }
+
+module "argocd" {
+  source = "./modules/argocd"
+
+  chart_version = var.argocd_chart_version
+
+  depends_on = [module.eks]
+}
