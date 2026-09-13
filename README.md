@@ -91,7 +91,7 @@ para o repositório [`fiap-challenge-3-gitops`](https://github.com/millenevprado
 
 ## CI/CD (`.github/workflows/terraform.yml`)
 
-- **`validate`**: roda em todo `push` para `main` que altere arquivos `.tf` —
+- **`validate`**: roda em todo `push` para `main`/`master` que altere arquivos `.tf` —
   `terraform fmt -check`, `terraform init` e `terraform validate`.
 - **`plan`**: roda em seguida (mesmo evento) e mostra o diff do estado real
   contra o código, sem aplicar nada.
