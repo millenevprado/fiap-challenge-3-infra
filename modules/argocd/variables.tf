@@ -15,3 +15,26 @@ variable "server_service_type" {
   type        = string
   default     = "ClusterIP"
 }
+
+variable "gitops_repo_url" {
+  description = "URL of the GitOps Git repository containing the microservice manifests."
+  type        = string
+}
+
+variable "gitops_target_revision" {
+  description = "Branch/tag/commit of the GitOps repository to sync."
+  type        = string
+  default     = "main"
+}
+
+variable "app_namespace" {
+  description = "Cluster namespace where the microservices are deployed (Applications' destination)."
+  type        = string
+  default     = "togglemaster"
+}
+
+variable "microservices" {
+  description = "Microservices in the GitOps repository; each one becomes an ArgoCD Application pointing at the matching subdirectory."
+  type        = list(string)
+  default     = []
+}

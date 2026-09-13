@@ -110,6 +110,24 @@ variable "argocd_chart_version" {
   default     = "10.9.0"
 }
 
+variable "gitops_repo_url" {
+  description = "URL of the GitOps Git repository containing the microservice manifests, synced by ArgoCD."
+  type        = string
+  default     = "https://github.com/millenevprado/fiap-challenge-3-gitops.git"
+}
+
+variable "gitops_target_revision" {
+  description = "Branch/tag/commit of the GitOps repository that the ArgoCD Applications should sync."
+  type        = string
+  default     = "main"
+}
+
+variable "microservices" {
+  description = "Microservices in the GitOps repository; each one becomes an ArgoCD Application pointing at the matching subdirectory."
+  type        = list(string)
+  default     = ["auth-service", "flag-service", "targeting-service", "evaluation-service", "analytics-service"]
+}
+
 variable "ecr_repository_names" {
   description = "Names of the ECR repositories, one per microservice."
   type        = list(string)
