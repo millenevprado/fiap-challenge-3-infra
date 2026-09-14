@@ -146,3 +146,51 @@ module "external_secrets" {
 
   depends_on = [module.eks]
 }
+
+# evaluation-service only publishes evaluation events to SQS.
+data "aws_iam_policy_document" "evaluation_service" {
+  statement {
+    actions   = ["sqs:SendMessage"]
+    resources = [module.sqs.queue_arn]
+  }
+}
+
+module "irsa_evaluation_service" {
+  source = "./modules/irsa"
+
+  role_name            = "${var.project_name}-evaluation-service"
+  oidc_provider_arn    = module.eks.oidc_provider_arn
+  oidc_provider_url    = module.eks.oidc_provider_url
+  namespace            = "togglemaster"
+  service_account_name = "evaluation-service"
+  policy_json          = data.aws_iam_policy_document.evaluation_service.json
+
+  depends_on = [module.eks]
+}
+
+# analytics-service consumes the same queue and writes the resulting rows to
+# DynamoDB.
+data "aws_iam_policy_document" "analytics_service" {
+  statement {
+    actions   = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
+    resources = [module.sqs.queue_arn]
+  }
+
+  statement {
+    actions   = ["dynamodb:PutItem"]
+    resources = [module.dynamodb.arn]
+  }
+}
+
+module "irsa_analytics_service" {
+  source = "./modules/irsa"
+
+  role_name            = "${var.project_name}-analytics-service"
+  oidc_provider_arn    = module.eks.oidc_provider_arn
+  oidc_provider_url    = module.eks.oidc_provider_url
+  namespace            = "togglemaster"
+  service_account_name = "analytics-service"
+  policy_json          = data.aws_iam_policy_document.analytics_service.json
+
+  depends_on = [module.eks]
+}
