@@ -89,3 +89,16 @@ resource "aws_eks_node_group" "ng" {
     aws_iam_role_policy_attachment.node_ecr_policy,
   ]
 }
+
+# OIDC provider, required for IRSA (IAM Roles for Service Accounts) — lets
+# pods (e.g. External Secrets Operator) assume an IAM role via their
+# projected service account token, with no static AWS credentials.
+data "tls_certificate" "eks_oidc" {
+  url = aws_eks_cluster.cluster.identity[0].oidc[0].issuer
+}
+
+resource "aws_iam_openid_connect_provider" "eks" {
+  url             = aws_eks_cluster.cluster.identity[0].oidc[0].issuer
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.eks_oidc.certificates[0].sha1_fingerprint]
+}

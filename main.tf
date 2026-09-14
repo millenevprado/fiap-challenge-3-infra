@@ -75,6 +75,22 @@ module "rds_targeting" {
   db_pass                = var.db_pass
 }
 
+# auth-service's JWT signing key — generated once by Terraform and read by
+# External Secrets Operator
+resource "random_password" "auth_master_key" {
+  length  = 32
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "auth_master_key" {
+  name = "${var.project_name}-auth-master-key"
+}
+
+resource "aws_secretsmanager_secret_version" "auth_master_key" {
+  secret_id     = aws_secretsmanager_secret.auth_master_key.id
+  secret_string = random_password.auth_master_key.result
+}
+
 module "elasticache" {
   source = "./modules/elasticache"
 
@@ -109,6 +125,24 @@ module "argocd" {
   gitops_repo_url        = var.gitops_repo_url
   gitops_target_revision = var.gitops_target_revision
   microservices          = var.microservices
+
+  depends_on = [module.eks]
+}
+
+module "external_secrets" {
+  source = "./modules/external-secrets"
+
+  project_name      = var.project_name
+  aws_region        = var.aws_region
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_url = module.eks.oidc_provider_url
+
+  secret_arns = [
+    module.rds_auth.secret_arn,
+    module.rds_flag.secret_arn,
+    module.rds_targeting.secret_arn,
+    aws_secretsmanager_secret.auth_master_key.arn,
+  ]
 
   depends_on = [module.eks]
 }

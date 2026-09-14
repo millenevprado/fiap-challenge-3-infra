@@ -18,6 +18,14 @@ terraform {
       source  = "gavinbunney/kubectl"
       version = "~> 1.14"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 
   backend "s3" {
