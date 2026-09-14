@@ -1,46 +1,42 @@
 # infra — ToggleMaster
 
 Código Terraform que provisiona toda a infraestrutura AWS do ToggleMaster para o
-Tech Challenge Fase 3: networking, cluster EKS, bancos de dados (RDS, ElastiCache,
-DynamoDB), fila SQS e repositórios ECR.
+Tech Challenge Fase 3: networking, cluster EKS (com OIDC/IRSA), bancos de dados
+(RDS, ElastiCache, DynamoDB), fila SQS, repositórios ECR, ArgoCD e External
+Secrets Operator no cluster.
 
 ## Estrutura
 
 ```
 infra/
 ├── backend.tf              # backend remoto (S3) + versões dos providers
-├── providers.tf            # provider AWS
-├── variables.tf            # variáveis do módulo raiz
-├── main.tf                 # conecta todos os módulos
-├── outputs.tf              # endpoints/ARNs usados depois pelos Secrets do K8s
+├── providers.tf            # providers aws, kubernetes, helm, kubectl
+├── variables.tf             # variáveis do módulo raiz
+├── main.tf                 # conecta todos os módulos + secrets internos
+├── outputs.tf               # ARNs/hashes usados nos manifestos do repo gitops
 ├── terraform.tfvars.example
 └── modules/
-    ├── networking/   # VPC, subnets públicas/privadas, IGW, NAT, route tables
-    ├── eks/          # cluster EKS + node group (LabRole ou IAM próprio)
-    ├── rds/          # módulo genérico de instância RDS Postgres (chamado 3x)
-    ├── elasticache/  # cluster Redis
-    ├── dynamodb/     # tabela ToggleMasterAnalytics
-    ├── sqs/          # fila entre evaluation-service e analytics-service
-    ├── ecr/          # 5 repositórios de imagem, um por microsserviço
-    └── argocd/       # ArgoCD via Helm (provider helm), instalado no EKS
+    ├── networking/       # VPC, subnets públicas/privadas, IGW, NAT, route tables
+    ├── eks/              # cluster EKS + node group + OIDC provider (IRSA)
+    ├── rds/              # instância RDS Postgres genérica (chamada 3x) + Secrets Manager
+    ├── elasticache/      # cluster Redis
+    ├── dynamodb/         # tabela ToggleMasterAnalytics
+    ├── sqs/              # fila entre evaluation-service e analytics-service
+    ├── ecr/              # 5 repositórios de imagem, um por microsserviço
+    ├── argocd/           # ArgoCD via Helm + uma Application por microsserviço
+    ├── external-secrets/ # External Secrets Operator via Helm + ClusterSecretStore
+    └── irsa/             # módulo genérico de IAM Role for Service Accounts
 ```
 
-## AWS Academy x Conta pessoal
-
-A variável `use_lab_role` controla o módulo `eks`:
-
-- `use_lab_role = true` (padrão): não cria nenhuma role/policy de IAM. O módulo
-  importa a `LabRole` existente via `data "aws_iam_role"` e a associa ao cluster
-  e ao node group.
-- `use_lab_role = false`: o módulo cria as roles de IAM do zero (cluster role +
-  node role com as policies gerenciadas da AWS).
+As roles de IAM do cluster e dos nós (`modules/eks`) são criadas diretamente
+pelo Terraform (`aws_iam_role` + policies gerenciadas da AWS)
 
 ## Como rodar
 
 1. Crie manualmente o bucket S3 que vai guardar o `tfstate` (o backend não pode
    se auto-provisionar) e ajuste `backend.tf` com o nome do bucket.
 2. Copie `terraform.tfvars.example` para `terraform.tfvars` e ajuste os valores
-   (região, `use_lab_role`, tamanhos de instância etc.).
+   (região, tamanhos de instância, `db_user`/`db_pass` etc.).
 3. Rode:
 
    ```bash
@@ -49,12 +45,10 @@ A variável `use_lab_role` controla o módulo `eks`:
    terraform apply tfplan
    ```
 
-4. Anote os outputs (`terraform output`) — os endpoints de RDS/Redis, o nome da
-   tabela DynamoDB, a URL/ARN da fila SQS e as URLs dos repositórios ECR viram
-   Secrets/ConfigMaps nos manifestos do repositório `gitops`.
-5. Quando não estiver usando (fim do dia de trabalho, entre sessões de teste),
-   rode `terraform destroy` — EKS, NAT Gateway e RDS são cobrados por hora
-   mesmo parados/ociosos.
+4. Rode `terraform output` para pegar `service_api_key_hash` (vai na tabela
+   `api_keys` do `auth-service`) e os ARNs das roles IRSA de
+   `evaluation-service`/`analytics-service` (anotação
+   `eks.amazonaws.com/role-arn` nos ServiceAccounts do repo `gitops`).
 
 ## ArgoCD
 
@@ -64,9 +58,17 @@ namespace `argocd` do EKS, via os providers `helm`/`kubernetes` configurados em
 kubeconfig manual). O Service do `argocd-server` fica como `ClusterIP` (sem
 LoadBalancer, para não gerar custo extra) — o acesso é por port-forward.
 
-Como cluster e ArgoCD nascem no mesmo `apply`, os providers `helm`/`kubernetes`
-dependem de valores que só existem depois do EKS ser criado. Na primeira vez
-(cluster ainda não existe), rode em duas etapas:
+Além do Helm release, o módulo cria (via `kubectl_manifest`, provider
+`gavinbunney/kubectl`) uma `Application` do ArgoCD para cada nome em
+`var.microservices`, apontando para o subdiretório correspondente do
+[`fiap-challenge-3-gitops`](https://github.com/millenevprado/fiap-challenge-3-gitops)
+(`var.gitops_repo_url`/`var.gitops_target_revision`), com sync automático
+(`prune` + `selfHeal`) — qualquer commit no repo gitops é aplicado sozinho no
+cluster, e mudanças manuais feitas fora do Git são revertidas.
+
+Como cluster e ArgoCD nascem no mesmo `apply`, os providers `helm`/`kubernetes`/
+`kubectl` dependem de valores que só existem depois do EKS ser criado. Na
+primeira vez (cluster ainda não existe), rode em duas etapas:
 
 ```bash
 terraform apply -target=module.eks
@@ -85,9 +87,45 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath="{.data.password}" | base64 -d
 ```
 
-A partir daí, a próxima etapa é criar as `Application` do ArgoCD apontando
-para o repositório [`fiap-challenge-3-gitops`](https://github.com/millenevprado/fiap-challenge-3-gitops)
-(uma por microsserviço, cada uma sincronizando seu próprio subdiretório).
+## External Secrets Operator + Secrets Manager
+
+O módulo `external-secrets` instala o External Secrets Operator (chart
+`external-secrets/external-secrets`) no namespace `external-secrets`, com uma
+role IRSA que só tem permissão de `secretsmanager:GetSecretValue`/
+`DescribeSecret` nos ARNs listados em `var.secret_arns` — o pod nunca guarda
+uma access key estática. O módulo também cria um `ClusterSecretStore`
+(`aws-secretsmanager`) compartilhado por todos os namespaces.
+
+Segredos gerados/gerenciados pelo Terraform e disponíveis via Secrets Manager:
+
+- `<identifier>-credentials` (um por RDS: auth/flag/targeting) — usuário, senha,
+  host, porta e nome do banco, gerados pelo módulo `rds`.
+- `togglemaster-auth-master-key` — chave de assinatura JWT do `auth-service`
+  (`random_password`, gerada uma única vez pelo Terraform).
+- `togglemaster-service-api-key` — API key interna usada por
+  `evaluation-service` para chamar `flag-service`/`targeting-service`; só o
+  hash SHA-256 (`service_api_key_hash`, no output) precisa ir para o banco do
+  `auth-service` — o valor em texto puro só existe no Secrets Manager.
+
+No repositório `gitops`, cada um desses secrets vira um manifesto
+`ExternalSecret` referenciando `secretStoreRef.name: aws-secretsmanager` e
+`remoteRef.key: <nome do secret>`.
+
+## IRSA (IAM Roles for Service Accounts)
+
+O módulo `irsa` é genérico: recebe um `policy_json` e cria uma role assumível
+via OIDC pelo par namespace/ServiceAccount informado — sem credenciais AWS
+estáticas no pod. Hoje é usado por dois microsserviços:
+
+- `irsa_evaluation_service`: permissão de `sqs:SendMessage` na fila de eventos.
+- `irsa_analytics_service`: permissão de consumir a fila (`ReceiveMessage`/
+  `DeleteMessage`/`GetQueueAttributes`) e escrever na tabela DynamoDB
+  (`dynamodb:PutItem`).
+
+Os ARNs das roles saem em `evaluation_service_irsa_role_arn` e
+`analytics_service_irsa_role_arn` (via `terraform output`) — usados para
+anotar (`eks.amazonaws.com/role-arn`) os ServiceAccounts desses dois
+microsserviços no repositório `gitops`.
 
 ## CI/CD (`.github/workflows/terraform.yml`)
 

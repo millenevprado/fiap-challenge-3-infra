@@ -91,6 +91,28 @@ resource "aws_secretsmanager_secret_version" "auth_master_key" {
   secret_string = random_password.auth_master_key.result
 }
 
+# Internal API key evaluation-service uses to call flag-service/targeting-service
+# (they authenticate every request against auth-service's /validate). The
+# plaintext lives only in Secrets Manager; auth-service's database only ever
+# gets the SHA-256 hash, exactly like a key created through its own API.
+resource "random_id" "service_api_key" {
+  byte_length = 32
+}
+
+locals {
+  service_api_key      = "tm_key_${random_id.service_api_key.hex}"
+  service_api_key_hash = sha256(local.service_api_key)
+}
+
+resource "aws_secretsmanager_secret" "service_api_key" {
+  name = "${var.project_name}-service-api-key"
+}
+
+resource "aws_secretsmanager_secret_version" "service_api_key" {
+  secret_id     = aws_secretsmanager_secret.service_api_key.id
+  secret_string = local.service_api_key
+}
+
 module "elasticache" {
   source = "./modules/elasticache"
 
@@ -141,6 +163,7 @@ module "external_secrets" {
     module.rds_auth.secret_arn,
     module.rds_flag.secret_arn,
     module.rds_targeting.secret_arn,
+    aws_secretsmanager_secret.service_api_key.arn,
     aws_secretsmanager_secret.auth_master_key.arn,
   ]
 
