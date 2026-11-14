@@ -154,10 +154,9 @@ module "argocd" {
 module "external_secrets" {
   source = "./modules/external-secrets"
 
-  project_name      = var.project_name
-  aws_region        = var.aws_region
-  oidc_provider_arn = module.eks.oidc_provider_arn
-  oidc_provider_url = module.eks.oidc_provider_url
+  project_name = var.project_name
+  aws_region   = var.aws_region
+  cluster_name = module.eks.cluster_name
 
   secret_arns = [
     module.rds_auth.secret_arn,
@@ -178,12 +177,11 @@ data "aws_iam_policy_document" "evaluation_service" {
   }
 }
 
-module "irsa_evaluation_service" {
-  source = "./modules/irsa"
+module "pod_identity_evaluation_service" {
+  source = "./modules/pod-identity"
 
   role_name            = "${var.project_name}-evaluation-service"
-  oidc_provider_arn    = module.eks.oidc_provider_arn
-  oidc_provider_url    = module.eks.oidc_provider_url
+  cluster_name         = module.eks.cluster_name
   namespace            = "togglemaster"
   service_account_name = "evaluation-service"
   policy_json          = data.aws_iam_policy_document.evaluation_service.json
@@ -205,12 +203,11 @@ data "aws_iam_policy_document" "analytics_service" {
   }
 }
 
-module "irsa_analytics_service" {
-  source = "./modules/irsa"
+module "pod_identity_analytics_service" {
+  source = "./modules/pod-identity"
 
   role_name            = "${var.project_name}-analytics-service"
-  oidc_provider_arn    = module.eks.oidc_provider_arn
-  oidc_provider_url    = module.eks.oidc_provider_url
+  cluster_name         = module.eks.cluster_name
   namespace            = "togglemaster"
   service_account_name = "analytics-service"
   policy_json          = data.aws_iam_policy_document.analytics_service.json

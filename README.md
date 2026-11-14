@@ -1,7 +1,7 @@
 # infra — ToggleMaster
 
 Código Terraform que provisiona toda a infraestrutura AWS do ToggleMaster para o
-Tech Challenge Fase 3: networking, cluster EKS (com OIDC/IRSA), bancos de dados
+Tech Challenge Fase 3: networking, cluster EKS (com EKS Pod Identity), bancos de dados
 (RDS, ElastiCache, DynamoDB), fila SQS, repositórios ECR, ArgoCD e External
 Secrets Operator no cluster.
 
@@ -17,7 +17,7 @@ infra/
 ├── terraform.tfvars.example
 └── modules/
     ├── networking/       # VPC, subnets públicas/privadas, IGW, NAT, route tables
-    ├── eks/              # cluster EKS + node group + OIDC provider (IRSA)
+    ├── eks/              # cluster EKS + node group + addon Pod Identity Agent
     ├── rds/              # instância RDS Postgres genérica (chamada 3x) + Secrets Manager
     ├── elasticache/      # cluster Redis
     ├── dynamodb/         # tabela ToggleMasterAnalytics
@@ -25,7 +25,7 @@ infra/
     ├── ecr/              # 5 repositórios de imagem, um por microsserviço
     ├── argocd/           # ArgoCD via Helm + uma Application por microsserviço
     ├── external-secrets/ # External Secrets Operator via Helm + ClusterSecretStore
-    └── irsa/             # módulo genérico de IAM Role for Service Accounts
+    └── pod-identity/     # módulo genérico de role IAM para ServiceAccount (EKS Pod Identity)
 ```
 
 As roles de IAM do cluster e dos nós (`modules/eks`) são criadas diretamente
@@ -46,9 +46,9 @@ pelo Terraform (`aws_iam_role` + policies gerenciadas da AWS)
    ```
 
 4. Rode `terraform output` para pegar `service_api_key_hash` (vai na tabela
-   `api_keys` do `auth-service`) e os ARNs das roles IRSA de
-   `evaluation-service`/`analytics-service` (anotação
-   `eks.amazonaws.com/role-arn` nos ServiceAccounts do repo `gitops`).
+   `api_keys` do `auth-service`). As roles de `evaluation-service` e
+   `analytics-service` já ficam associadas aos ServiceAccounts pelo EKS Pod
+   Identity, sem anotação no repo `gitops`.
 
 ## ArgoCD
 
@@ -91,7 +91,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 
 O módulo `external-secrets` instala o External Secrets Operator (chart
 `external-secrets/external-secrets`) no namespace `external-secrets`, com uma
-role IRSA que só tem permissão de `secretsmanager:GetSecretValue`/
+role (EKS Pod Identity) que só tem permissão de `secretsmanager:GetSecretValue`/
 `DescribeSecret` nos ARNs listados em `var.secret_arns` — o pod nunca guarda
 uma access key estática. O módulo também cria um `ClusterSecretStore`
 (`aws-secretsmanager`) compartilhado por todos os namespaces.
@@ -111,21 +111,22 @@ No repositório `gitops`, cada um desses secrets vira um manifesto
 `ExternalSecret` referenciando `secretStoreRef.name: aws-secretsmanager` e
 `remoteRef.key: <nome do secret>`.
 
-## IRSA (IAM Roles for Service Accounts)
+## EKS Pod Identity
 
-O módulo `irsa` é genérico: recebe um `policy_json` e cria uma role assumível
-via OIDC pelo par namespace/ServiceAccount informado — sem credenciais AWS
-estáticas no pod. Hoje é usado por dois microsserviços:
+O módulo `pod-identity` é genérico: recebe um `policy_json`, cria uma role
+assumível por `pods.eks.amazonaws.com` e a associa
+(`aws_eks_pod_identity_association`) ao par namespace/ServiceAccount
+informado. O addon `eks-pod-identity-agent` entrega as credenciais ao pod, sem
+credenciais AWS estáticas. Hoje é usado por dois microsserviços:
 
-- `irsa_evaluation_service`: permissão de `sqs:SendMessage` na fila de eventos.
-- `irsa_analytics_service`: permissão de consumir a fila (`ReceiveMessage`/
+- `pod_identity_evaluation_service`: permissão de `sqs:SendMessage` na fila de eventos.
+- `pod_identity_analytics_service`: permissão de consumir a fila (`ReceiveMessage`/
   `DeleteMessage`/`GetQueueAttributes`) e escrever na tabela DynamoDB
   (`dynamodb:PutItem`).
 
-Os ARNs das roles saem em `evaluation_service_irsa_role_arn` e
-`analytics_service_irsa_role_arn` (via `terraform output`) — usados para
-anotar (`eks.amazonaws.com/role-arn`) os ServiceAccounts desses dois
-microsserviços no repositório `gitops`.
+Por que não IRSA: a conta AWS tem uma SCP que nega
+`iam:CreateOpenIDConnectProvider`. O Pod Identity não precisa de OIDC
+provider e não exige anotação nos ServiceAccounts.
 
 ## CI/CD (`.github/workflows/terraform.yml`)
 

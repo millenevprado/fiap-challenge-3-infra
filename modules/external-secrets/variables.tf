@@ -20,13 +20,8 @@ variable "chart_version" {
   default     = "0.10.7"
 }
 
-variable "oidc_provider_arn" {
-  description = "ARN of the EKS cluster's IAM OIDC provider, used to build the IRSA trust policy."
-  type        = string
-}
-
-variable "oidc_provider_url" {
-  description = "OIDC issuer URL (without the https:// scheme), used in the IRSA trust policy condition keys."
+variable "cluster_name" {
+  description = "Name of the EKS cluster, used for the Pod Identity association."
   type        = string
 }
 

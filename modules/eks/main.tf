@@ -90,15 +90,12 @@ resource "aws_eks_node_group" "ng" {
   ]
 }
 
-# OIDC provider, required for IRSA (IAM Roles for Service Accounts) — lets
-# pods (e.g. External Secrets Operator) assume an IAM role via their
-# projected service account token, with no static AWS credentials.
-data "tls_certificate" "eks_oidc" {
-  url = aws_eks_cluster.cluster.identity[0].oidc[0].issuer
-}
+# EKS Pod Identity agent: gives pods the IAM role of their service account
+# (aws_eks_pod_identity_association). Used instead of IRSA because the AWS
+# account's SCP denies iam:CreateOpenIDConnectProvider.
+resource "aws_eks_addon" "pod_identity_agent" {
+  cluster_name = aws_eks_cluster.cluster.name
+  addon_name   = "eks-pod-identity-agent"
 
-resource "aws_iam_openid_connect_provider" "eks" {
-  url             = aws_eks_cluster.cluster.identity[0].oidc[0].issuer
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.eks_oidc.certificates[0].sha1_fingerprint]
+  depends_on = [aws_eks_node_group.ng]
 }

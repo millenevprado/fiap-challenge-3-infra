@@ -21,7 +21,7 @@ resource "aws_db_instance" "postgres" {
 }
 
 # Real credentials, readable by the cluster via External Secrets Operator +
-# IRSA
+# EKS Pod Identity
 resource "aws_secretsmanager_secret" "credentials" {
   name = "${var.identifier}-credentials"
 }

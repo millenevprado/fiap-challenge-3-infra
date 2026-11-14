@@ -3,13 +3,8 @@ variable "role_name" {
   type        = string
 }
 
-variable "oidc_provider_arn" {
-  description = "ARN of the EKS cluster's IAM OIDC provider."
-  type        = string
-}
-
-variable "oidc_provider_url" {
-  description = "OIDC issuer URL (without the https:// scheme), used in the IRSA trust policy condition keys."
+variable "cluster_name" {
+  description = "Name of the EKS cluster where the Pod Identity association is created."
   type        = string
 }
 

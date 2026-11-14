@@ -11,27 +11,15 @@ locals {
   service_account_name = "external-secrets"
 }
 
-# IRSA: lets the external-secrets pod assume this role via its projected
-# service account token — no static AWS access keys stored in the cluster.
+# EKS Pod Identity: lets the external-secrets pod assume this role, with no
+# static AWS access keys stored in the cluster (see the association below).
 data "aws_iam_policy_document" "assume_role" {
   statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
+    actions = ["sts:AssumeRole", "sts:TagSession"]
 
     principals {
-      type        = "Federated"
-      identifiers = [var.oidc_provider_arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${var.oidc_provider_url}:sub"
-      values   = ["system:serviceaccount:${var.namespace}:${local.service_account_name}"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${var.oidc_provider_url}:aud"
-      values   = ["sts.amazonaws.com"]
+      type        = "Service"
+      identifiers = ["pods.eks.amazonaws.com"]
     }
   }
 }
@@ -66,18 +54,26 @@ resource "helm_release" "external_secrets" {
     yamlencode({
       serviceAccount = {
         name = local.service_account_name
-        annotations = {
-          "eks.amazonaws.com/role-arn" = aws_iam_role.this.arn
-        }
       }
     })
   ]
+
+  # The association must exist before the pod starts, or the pod gets no
+  # AWS credentials until it is restarted.
+  depends_on = [aws_eks_pod_identity_association.external_secrets]
+}
+
+resource "aws_eks_pod_identity_association" "external_secrets" {
+  cluster_name    = var.cluster_name
+  namespace       = var.namespace
+  service_account = local.service_account_name
+  role_arn        = aws_iam_role.this.arn
 }
 
 # Cluster-wide connection to AWS Secrets Manager, shared by every
 # ExternalSecret across all namespaces (auth-service, flag-service, ...).
-# Auth is implicit: it uses the IRSA role attached to the pod's service
-# account above, so no credentials are declared here.
+# Auth is implicit: it uses the Pod Identity role associated with the pod's
+# service account above, so no credentials are declared here.
 resource "kubectl_manifest" "cluster_secret_store" {
   yaml_body = yamlencode({
     apiVersion = "external-secrets.io/v1beta1"
