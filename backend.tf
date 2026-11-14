@@ -29,9 +29,9 @@ terraform {
   }
 
   backend "s3" {
-    bucket       = "togglemaster-fiap-tfstate"
+    bucket       = "togglemaster-fiap-tfstate-191667534491"
     key          = "infra/terraform.tfstate"
-    region       = "us-east-1"
+    region       = "us-east-2"
     use_lockfile = true
   }
 }
