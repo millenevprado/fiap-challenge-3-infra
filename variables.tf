@@ -45,13 +45,15 @@ variable "node_instance_types" {
   type        = list(string)
   # t3.small fits only 11 pods per node (VPC CNI limit): not enough for the
   # 5 services (2 replicas each) + ArgoCD + External Secrets + kube-system.
-  default = ["t3.medium"]
+  # The AWS account is on the Free Plan, which only launches Free Tier
+  # eligible types (no t3.medium); m7i-flex.large fits 29 pods and 8 GiB.
+  default = ["m7i-flex.large"]
 }
 
 variable "node_desired_size" {
   description = "Desired number of nodes in the Node Group."
   type        = number
-  default     = 3
+  default     = 2
 }
 
 variable "node_min_size" {
@@ -63,7 +65,7 @@ variable "node_min_size" {
 variable "node_max_size" {
   description = "Maximum number of nodes in the Node Group."
   type        = number
-  default     = 4
+  default     = 3
 }
 
 variable "rds_engine_version" {
