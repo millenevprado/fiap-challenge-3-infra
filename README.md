@@ -78,7 +78,7 @@ terraform apply
 Depois de aplicado, configure o `kubectl` e acesse a UI:
 
 ```bash
-aws eks update-kubeconfig --name togglemaster-eks --region us-east-1
+aws eks update-kubeconfig --name togglemaster-eks --region us-east-2
 
 kubectl -n argocd port-forward svc/argocd-server 8080:443
 # UI em https://localhost:8080, usuário "admin"
