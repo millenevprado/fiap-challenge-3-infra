@@ -43,13 +43,15 @@ variable "eks_cluster_version" {
 variable "node_instance_types" {
   description = "EC2 instance types used by the Node Group."
   type        = list(string)
-  default     = ["t3.small"]
+  # t3.small fits only 11 pods per node (VPC CNI limit): not enough for the
+  # 5 services (2 replicas each) + ArgoCD + External Secrets + kube-system.
+  default = ["t3.medium"]
 }
 
 variable "node_desired_size" {
   description = "Desired number of nodes in the Node Group."
   type        = number
-  default     = 2
+  default     = 3
 }
 
 variable "node_min_size" {
@@ -61,7 +63,7 @@ variable "node_min_size" {
 variable "node_max_size" {
   description = "Maximum number of nodes in the Node Group."
   type        = number
-  default     = 3
+  default     = 4
 }
 
 variable "rds_engine_version" {
