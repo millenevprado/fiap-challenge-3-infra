@@ -220,6 +220,11 @@ module "pod_identity_analytics_service" {
 # secret. External Secrets Operator materializes it in the cluster (gitops
 # repo: platform/observability/externalsecrets.yaml), so the GitOps repo never
 # holds a token in plain text.
+resource "random_password" "grafana_admin" {
+  length  = 24
+  special = false
+}
+
 resource "aws_secretsmanager_secret" "observability" {
   name = "${var.project_name}-observability"
 }
@@ -229,5 +234,9 @@ resource "aws_secretsmanager_secret_version" "observability" {
   secret_string = jsonencode({
     newrelic_license_key   = var.newrelic_license_key
     newrelic_otlp_endpoint = var.newrelic_otlp_endpoint
+    pagerduty_routing_key  = var.pagerduty_routing_key
+    slack_webhook_url      = var.slack_webhook_url
+    grafana_admin_user     = "admin"
+    grafana_admin_password = random_password.grafana_admin.result
   })
 }

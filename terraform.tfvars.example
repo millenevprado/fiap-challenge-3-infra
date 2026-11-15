@@ -12,5 +12,7 @@ redis_node_type    = "cache.t3.micro"
 db_user = "CHANGEME"
 db_pass = "CHANGEME_com_12_ou_mais_caracteres"
 
-# Secret: prefer TF_VAR_newrelic_license_key.
-newrelic_license_key = "CHANGEME"
+# Fase 4 (observability). Secrets: prefer TF_VAR_* env vars.
+newrelic_license_key  = "CHANGEME"
+pagerduty_routing_key = "CHANGEME"
+slack_webhook_url     = "https://hooks.slack.com/services/CHANGEME"

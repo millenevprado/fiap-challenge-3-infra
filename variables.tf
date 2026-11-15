@@ -155,3 +155,15 @@ variable "newrelic_otlp_endpoint" {
   type        = string
   default     = "https://otlp.nr-data.net"
 }
+
+variable "pagerduty_routing_key" {
+  description = "PagerDuty Events API v2 integration (routing) key of the ToggleMaster service. Provide via TF_VAR_pagerduty_routing_key."
+  type        = string
+  sensitive   = true
+}
+
+variable "slack_webhook_url" {
+  description = "Slack Incoming Webhook URL of the incidents channel. Provide via TF_VAR_slack_webhook_url."
+  type        = string
+  sensitive   = true
+}
