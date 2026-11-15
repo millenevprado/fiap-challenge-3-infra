@@ -68,3 +68,39 @@ resource "kubectl_manifest" "app" {
 
   depends_on = [helm_release.argocd]
 }
+
+# App-of-apps for the platform layer (Fase 4: observability). The
+# "platform/apps" directory of the GitOps repo holds one ArgoCD Application
+# per Helm chart (kube-prometheus-stack, Loki, OpenTelemetry Collector) plus
+# the observability config (dashboards). Adding a new platform component is
+# just a commit in the GitOps repo.
+resource "kubectl_manifest" "platform" {
+  yaml_body = yamlencode({
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "platform"
+      namespace = kubernetes_namespace.argocd.metadata[0].name
+    }
+    spec = {
+      project = "default"
+      source = {
+        repoURL        = var.gitops_repo_url
+        targetRevision = var.gitops_target_revision
+        path           = var.platform_path
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = kubernetes_namespace.argocd.metadata[0].name
+      }
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+      }
+    }
+  })
+
+  depends_on = [helm_release.argocd]
+}

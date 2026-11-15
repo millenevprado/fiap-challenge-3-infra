@@ -38,3 +38,9 @@ variable "microservices" {
   type        = list(string)
   default     = []
 }
+
+variable "platform_path" {
+  description = "Directory of the GitOps repository holding the platform app-of-apps (child ArgoCD Applications)."
+  type        = string
+  default     = "platform/apps"
+}
