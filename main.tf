@@ -164,6 +164,7 @@ module "external_secrets" {
     module.rds_targeting.secret_arn,
     aws_secretsmanager_secret.service_api_key.arn,
     aws_secretsmanager_secret.auth_master_key.arn,
+    aws_secretsmanager_secret.observability.arn,
   ]
 
   depends_on = [module.eks]
@@ -213,4 +214,20 @@ module "pod_identity_analytics_service" {
   policy_json          = data.aws_iam_policy_document.analytics_service.json
 
   depends_on = [module.eks]
+}
+
+# Every credential the observability stack needs, in one Secrets Manager
+# secret. External Secrets Operator materializes it in the cluster (gitops
+# repo: platform/observability/externalsecrets.yaml), so the GitOps repo never
+# holds a token in plain text.
+resource "aws_secretsmanager_secret" "observability" {
+  name = "${var.project_name}-observability"
+}
+
+resource "aws_secretsmanager_secret_version" "observability" {
+  secret_id = aws_secretsmanager_secret.observability.id
+  secret_string = jsonencode({
+    newrelic_license_key   = var.newrelic_license_key
+    newrelic_otlp_endpoint = var.newrelic_otlp_endpoint
+  })
 }

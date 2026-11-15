@@ -11,3 +11,6 @@ redis_node_type    = "cache.t3.micro"
 
 db_user = "CHANGEME"
 db_pass = "CHANGEME_com_12_ou_mais_caracteres"
+
+# Secret: prefer TF_VAR_newrelic_license_key.
+newrelic_license_key = "CHANGEME"

@@ -143,3 +143,15 @@ variable "ecr_repository_names" {
     "analytics-service",
   ]
 }
+
+variable "newrelic_license_key" {
+  description = "New Relic INGEST - LICENSE key, used by the OTel Collector to export traces/metrics via OTLP. Provide via TF_VAR_newrelic_license_key."
+  type        = string
+  sensitive   = true
+}
+
+variable "newrelic_otlp_endpoint" {
+  description = "New Relic OTLP endpoint (US accounts: https://otlp.nr-data.net, EU: https://otlp.eu01.nr-data.net)."
+  type        = string
+  default     = "https://otlp.nr-data.net"
+}

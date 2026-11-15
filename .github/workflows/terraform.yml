@@ -21,6 +21,7 @@ env:
   AWS_REGION: us-east-2
   TF_VAR_db_user: ${{ secrets.TF_VAR_DB_USER }}
   TF_VAR_db_pass: ${{ secrets.TF_VAR_DB_PASS }}
+  TF_VAR_newrelic_license_key: ${{ secrets.TF_VAR_NEWRELIC_LICENSE_KEY }}
 
 jobs:
   validate:
