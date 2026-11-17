@@ -62,9 +62,9 @@ resource "aws_lambda_function" "this" {
   timeout          = 180
   memory_size      = 256
 
-  # Grafana groups alerts and repeats them; there is never a reason to run
-  # more than a couple of remediations at the same time.
-  reserved_concurrent_executions = 2
+  # No reserved_concurrent_executions: new accounts have a concurrency quota
+  # of 10, all of it must stay unreserved. Repeated alerts are handled by the
+  # cooldown check in the handler instead.
 
   tracing_config {
     mode = "Active"
