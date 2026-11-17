@@ -219,9 +219,14 @@ module "pod_identity_analytics_service" {
 # Every credential the observability stack needs, in one Secrets Manager
 # secret. External Secrets Operator materializes it in the cluster (gitops
 # repo: platform/observability/externalsecrets.yaml), so the GitOps repo never
-# holds a token in plain text.
+# holds a token in plain text. The self-healing Lambda reads it too.
 resource "random_password" "grafana_admin" {
   length  = 24
+  special = false
+}
+
+resource "random_password" "selfheal_token" {
+  length  = 48
   special = false
 }
 
@@ -236,7 +241,23 @@ resource "aws_secretsmanager_secret_version" "observability" {
     newrelic_otlp_endpoint = var.newrelic_otlp_endpoint
     pagerduty_routing_key  = var.pagerduty_routing_key
     slack_webhook_url      = var.slack_webhook_url
+    selfheal_url           = module.self_healing.function_url
+    selfheal_token         = random_password.selfheal_token.result
     grafana_admin_user     = "admin"
     grafana_admin_password = random_password.grafana_admin.result
   })
+}
+
+# Self-healing runbook: Grafana alert webhook -> Lambda ->
+# `kubectl rollout restart` (see modules/self-healing).
+module "self_healing" {
+  source = "./modules/self-healing"
+
+  project_name        = var.project_name
+  cluster_name        = module.eks.cluster_name
+  cluster_endpoint    = module.eks.cluster_endpoint
+  cluster_ca_data     = module.eks.cluster_certificate_authority_data
+  secret_arn          = aws_secretsmanager_secret.observability.arn
+  namespace           = "togglemaster"
+  allowed_deployments = var.selfheal_allowed_deployments
 }

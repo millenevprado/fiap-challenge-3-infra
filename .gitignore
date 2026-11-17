@@ -10,3 +10,7 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+
+# self-healing Lambda zip (built by archive_file)
+modules/self-healing/build/
+__pycache__/

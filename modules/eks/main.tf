@@ -61,8 +61,22 @@ resource "aws_eks_cluster" "cluster" {
   role_arn = aws_iam_role.cluster.arn
   version  = var.kubernetes_version
 
+  # API_AND_CONFIG_MAP enables EKS access entries, used to grant the
+  # self-healing Lambda Kubernetes RBAC without editing aws-auth. Switching
+  # from CONFIG_MAP is an in-place update (and one-way).
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
+  }
+
   vpc_config {
     subnet_ids = var.cluster_subnet_ids
+  }
+
+  # The bootstrap flag only matters at creation time; changing it would
+  # force a replacement of the existing cluster.
+  lifecycle {
+    ignore_changes = [access_config[0].bootstrap_cluster_creator_admin_permissions]
   }
 
   depends_on = [aws_iam_role_policy_attachment.cluster_policy]

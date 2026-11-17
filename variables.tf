@@ -167,3 +167,9 @@ variable "slack_webhook_url" {
   type        = string
   sensitive   = true
 }
+
+variable "selfheal_allowed_deployments" {
+  description = "Deployments in the app namespace the self-healing Lambda is allowed to restart."
+  type        = list(string)
+  default     = ["auth-service", "flag-service", "targeting-service", "evaluation-service", "analytics-service"]
+}
